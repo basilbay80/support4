@@ -2,7 +2,7 @@
 # ============================================
 # XAMPP Auto Installer
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/basilbay80/Pw1/main/installation.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/basilbay80/support4/main/installation.sh | bash
 # ============================================
 
 set -e
@@ -10,7 +10,7 @@ set -e
 # ============================================
 # 🔗 Repository URL
 # ============================================
-REPO_URL="https://raw.githubusercontent.com/basilbay80/Pw1/main"
+REPO_URL="https://raw.githubusercontent.com/basilbay80/support4/main"
 
 # ============================================
 # 📁 Directory Paths
